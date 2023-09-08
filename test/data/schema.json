@@ -1,0 +1,17 @@
+{
+  "properties": {
+    "ssn": {
+      "encrypt": {
+        "keyId": {
+          "$binary": {
+            "base64": "AAAAAAAAAAAAAAAAAAAAAA==",
+            "subType": "04"
+          }
+        },
+        "type": "string",
+        "algorithm": "AEAD_AES_CBC_HMAC_SHA512-Deterministic"
+      }
+    }
+  },
+  "bsonType": "object"
+}
