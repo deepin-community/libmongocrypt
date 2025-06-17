@@ -17,40 +17,36 @@
 #ifndef MONGOCRYPT_CIPHERTEXT_PRIVATE_H
 #define MONGOCRYPT_CIPHERTEXT_PRIVATE_H
 
+#include "mc-fle-blob-subtype-private.h"
 #include "mongocrypt-buffer-private.h"
 #include "mongocrypt.h"
 
+/**
+ * Produced by mongocrypt-marking.c from _mongocrypt_marking_t
+ * as encrypted payloads for blob_subtypes:
+ *   FLE1DeterministicEncryptedValue(1)
+ *   FLE1RandomEncryptedValue(2)
+ *   FLE2InsertUpdatePayload(4)
+ */
 typedef struct {
-   _mongocrypt_buffer_t key_id;
-   uint8_t blob_subtype;
-   uint8_t original_bson_type;
-   _mongocrypt_buffer_t data;
+    _mongocrypt_buffer_t key_id;
+    mc_fle_blob_subtype_t blob_subtype;
+    uint8_t original_bson_type;
+    _mongocrypt_buffer_t data;
 } _mongocrypt_ciphertext_t;
 
+void _mongocrypt_ciphertext_init(_mongocrypt_ciphertext_t *ciphertext);
 
-void
-_mongocrypt_ciphertext_init (_mongocrypt_ciphertext_t *ciphertext);
+void _mongocrypt_ciphertext_cleanup(_mongocrypt_ciphertext_t *ciphertext);
 
+bool _mongocrypt_ciphertext_parse_unowned(_mongocrypt_buffer_t *in,
+                                          _mongocrypt_ciphertext_t *ciphertext,
+                                          mongocrypt_status_t *status) MONGOCRYPT_WARN_UNUSED_RESULT;
 
-void
-_mongocrypt_ciphertext_cleanup (_mongocrypt_ciphertext_t *ciphertext);
+bool _mongocrypt_serialize_ciphertext(_mongocrypt_ciphertext_t *ciphertext,
+                                      _mongocrypt_buffer_t *out) MONGOCRYPT_WARN_UNUSED_RESULT;
 
-
-bool
-_mongocrypt_ciphertext_parse_unowned (_mongocrypt_buffer_t *in,
-                                      _mongocrypt_ciphertext_t *ciphertext,
-                                      mongocrypt_status_t *status)
-   MONGOCRYPT_WARN_UNUSED_RESULT;
-
-bool
-_mongocrypt_serialize_ciphertext (_mongocrypt_ciphertext_t *ciphertext,
-                                  _mongocrypt_buffer_t *out)
-   MONGOCRYPT_WARN_UNUSED_RESULT;
-
-bool
-_mongocrypt_ciphertext_serialize_associated_data (
-   _mongocrypt_ciphertext_t *ciphertext,
-   _mongocrypt_buffer_t *out) MONGOCRYPT_WARN_UNUSED_RESULT;
-
+bool _mongocrypt_ciphertext_serialize_associated_data(_mongocrypt_ciphertext_t *ciphertext,
+                                                      _mongocrypt_buffer_t *out) MONGOCRYPT_WARN_UNUSED_RESULT;
 
 #endif /* MONGOCRYPT_CIPHERTEXT_PRIVATE_H */

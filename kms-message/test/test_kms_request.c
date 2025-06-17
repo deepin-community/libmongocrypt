@@ -15,7 +15,9 @@
  */
 
 /* Needed for strptime */
+#if !defined(_GNU_SOURCE)
 #define _GNU_SOURCE
+#endif
 
 #include "kms_message/kms_message.h"
 #include "kms_message_private.h"
@@ -32,6 +34,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <time.h>
+#include "kms_message/kms_azure_request.h"
 #include "kms_message/kms_b64.h"
 #include "hexlify.h"
 #include "kms_request_str.h"
@@ -277,9 +280,10 @@ read_req (const char *path)
          /* end of header */
          break;
       } else if (line_len > 2) {
-         /* continuing a multiline header from previous line */
-         /* TODO: is this a test quirk or HTTP specified behavior? */
-         kms_request_append_header_field_value (request, "\n", 1);
+         /* continuing a multiline header value from previous line */
+         /* Header line folding is deprecated by RFC 7230 section 3.2. */
+         /* get-header-value-multiline tests this behavior. */
+         kms_request_append_header_field_value (request, "\r\n", 2);
          /* omit this line's newline */
          kms_request_append_header_field_value (
             request, line, (size_t) (line_len - 1));
@@ -312,6 +316,13 @@ test_compare (kms_request_t *request,
    char *actual;
 
    expect = read_test (dir_path, suffix);
+   if (0 == strcmp (suffix, "sreq")) {
+      /* The final signed request is an HTTP request.
+       * The expected output must contain \r\n, not \n. */
+      char* tmp = replace_all (expect, "\n", "\r\n");
+      free (expect);
+      expect = tmp;
+   }
    actual = func (request);
    ASSERT_CMPSTR (expect, actual);
    free (actual);
@@ -374,7 +385,7 @@ all_aws_sig_v4_tests (const char *path, const char *selected)
    }
 
    if (skip_aws_test (test_name) && !selected) {
-      printf ("SKIP: %s\n", test_name);
+      TEST_PRINTF ("SKIP: %s\n", test_name);
       goto done;
    }
 
@@ -398,7 +409,7 @@ all_aws_sig_v4_tests (const char *path, const char *selected)
          continue;
       }
 
-      printf ("%s\n", path);
+      TEST_PRINTF ("%s\n", path);
       aws_sig_v4_test (path);
       ran_tests = true;
    }
@@ -894,7 +905,7 @@ parser_testcase_run (parser_testcase_t *testcase)
       size_t ret = fread (buf, 1, (size_t) bytes_to_read, response_file);
 
       if (!kms_response_parser_feed (parser, buf, (int) ret)) {
-         printf ("feed error: %s\n", parser->error);
+         TEST_PRINTF ("feed error: %s\n", parser->error);
          ASSERT (false);
       }
    }
@@ -936,7 +947,7 @@ kms_response_parser_files (void)
    size_t i;
 
    for (i = 0; i < sizeof (tests) / sizeof (tests[0]); i++) {
-      printf (" parser testcase: %d\n", (int) i);
+      TEST_PRINTF (" parser testcase: %d\n", (int) i);
       parser_testcase_run (tests + i);
    }
 }
@@ -1072,8 +1083,8 @@ kms_signature_test (void)
    signature_b64 = kms_message_raw_to_b64 (signature_raw, 256);
 
    if (0 != strcmp (signature_b64, expected_signature)) {
-      printf ("generated signature: %s\n", signature_b64);
-      printf ("but expected signature: %s\n", expected_signature);
+      TEST_PRINTF ("generated signature: %s\n", signature_b64);
+      TEST_PRINTF ("but expected signature: %s\n", expected_signature);
       abort ();
    }
 
@@ -1102,10 +1113,93 @@ kms_request_kmip_prohibited_test (void)
    kms_request_opt_destroy (opt);
 }
 
+static int
+count_substrings (const char *big, const char *little)
+{
+   char *iter;
+   int count = 0;
+
+   iter = strstr (big, little);
+   while (iter != NULL) {
+      count += 1;
+      iter += strlen (little);
+      iter = strstr (iter, little);
+   }
+   return count;
+}
+
+/* Test that outgoing HTTP requests use \r\n line delimitters, not \n.
+ * This is a regression test for MONGOCRYPT-457. */
+static void
+test_request_newlines (void)
+{
+   bool ok;
+   kms_request_t *req;
+   kms_request_opt_t *opt;
+   uint8_t example_data[] = {0x01, 0x02, 0x03, 0x04};
+
+   // Test kms_request_to_string.
+   {
+      opt = kms_request_opt_new ();
+      kms_request_opt_set_connection_close (opt, true);
+      ASSERT (kms_request_opt_set_provider (opt, KMS_REQUEST_PROVIDER_AZURE));
+      req = kms_azure_request_wrapkey_new ("example-host",
+                                           "example-access-token",
+                                           "example-key-name",
+                                           "example-key-version",
+                                           example_data,
+                                           sizeof (example_data),
+                                           opt);
+      ASSERT_REQUEST_OK (req);
+      char *req_str = kms_request_to_string (req);
+      ASSERT_REQUEST_OK (req);
+      ASSERT (req_str);
+      /* Check that all \n have a \r. */
+      int n = count_substrings (req_str, "\n");
+      int rn = count_substrings (req_str, "\r\n");
+      ASSERT_CMPINT (n, ==, rn);
+      ASSERT_CMPINT (rn, ==, 8);
+      free (req_str);
+      kms_request_opt_destroy (opt);
+      kms_request_destroy (req);
+   }
+
+   // Test kms_request_get_signed.
+   {
+      opt = kms_request_opt_new ();
+      kms_request_opt_set_connection_close (opt, true);
+      req = kms_caller_identity_request_new (opt);
+      ASSERT_REQUEST_OK (req);
+      ok = kms_request_set_region (req, "example-region");
+      ASSERT_REQUEST_OK (req);
+      ASSERT (ok);
+      ok = kms_request_set_service (req, "example-service");
+      ASSERT_REQUEST_OK (req);
+      ASSERT (ok);
+      ok = kms_request_set_access_key_id (req, "example-access-key-id");
+      ASSERT_REQUEST_OK (req);
+      ASSERT (ok);
+      ok = kms_request_set_secret_key (req, "example-secret-key");
+      ASSERT_REQUEST_OK (req);
+      ASSERT (ok);
+      char *req_str = kms_request_get_signed (req);
+      ASSERT_REQUEST_OK (req);
+      ASSERT (req_str);
+      /* Check that all \n have a \r. */
+      int n = count_substrings (req_str, "\n");
+      int rn = count_substrings (req_str, "\r\n");
+      ASSERT_CMPINT (n, ==, rn);
+      ASSERT_CMPINT (rn, ==, 8);
+      free (req_str);
+      kms_request_opt_destroy (opt);
+      kms_request_destroy (req);
+   }
+}
+
 #define RUN_TEST(_func)                                          \
    do {                                                          \
       if (!selector || 0 == kms_strcasecmp (#_func, selector)) { \
-         printf ("%s\n", #_func);                                \
+         TEST_PRINTF ("%s\n", #_func);                           \
          _func ();                                               \
          ran_tests = true;                                       \
       }                                                          \
@@ -1140,7 +1234,7 @@ main (int argc, char *argv[])
    help = "Usage: test_kms_request [TEST_NAME]";
 
    if (argc > 2) {
-      fprintf (stderr, "%s\n", help);
+      TEST_STDERR_PRINTF ("%s\n", help);
       abort ();
    } else if (argc == 2) {
       selector = argv[1];
@@ -1148,7 +1242,7 @@ main (int argc, char *argv[])
 
    int ret = kms_message_init ();
    if (ret != 0) {
-      printf ("kms_message_init failed: 0x%x\n", ret);
+      TEST_PRINTF ("kms_message_init failed: 0x%x\n", ret);
       abort ();
    }
 
@@ -1194,11 +1288,13 @@ main (int argc, char *argv[])
    RUN_TEST (kms_kmip_response_parser_reuse_test);
    RUN_TEST (kms_kmip_response_parser_excess_test);
    RUN_TEST (kms_kmip_response_parser_notenough_test);
+   RUN_TEST (test_request_newlines);
+   RUN_TEST (test_kms_util);
 
 
    if (!ran_tests) {
       KMS_ASSERT (argc == 2);
-      fprintf (stderr, "No such test: \"%s\"\n", argv[1]);
+      TEST_STDERR_PRINTF ("No such test: \"%s\"\n", argv[1]);
       abort ();
    }
 

@@ -1,0 +1,10 @@
+{
+    "name": "test",
+    "options": {
+        "encryptedFields": {
+            "escCollection": "esc",
+            "ecocCollection": "ecoc",
+            "fields": []
+        }
+    }
+}

@@ -20,7 +20,7 @@
 #include "kms_message/kms_response.h"
 #include "kms_message/kms_response_parser.h"
 
-#define MONGOC_LOG_DOMAIN "test_kms_azure_online"
+#define MONGOC_LOG_DOMAIN "test_kms_gcp_online"
 #include <mongoc/mongoc.h>
 
 #include "test_kms_assert.h"
@@ -56,7 +56,9 @@ test_getenv (const char *key)
 {
    char *value = getenv (key);
    if (!value) {
-      TEST_ERROR ("Environment variable: %s not set", key);
+      TEST_STDERR_PRINTF ("Environment variable: %s not set (@@ctest-skip@@)\n",
+                          key);
+      exit (2);
    }
    TEST_TRACE ("Env: %s = %s", key, value);
    return value;
@@ -183,7 +185,7 @@ test_gcp (void)
                                       opt);
    ASSERT (req);
    if (kms_request_get_error (req)) {
-      printf ("error: %s\n", kms_request_get_error (req));
+      TEST_STDERR_PRINTF ("error: %s\n", kms_request_get_error (req));
       ASSERT (false);
    }
    req_str = kms_request_to_string (req);

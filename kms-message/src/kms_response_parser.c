@@ -38,6 +38,14 @@ _parser_init (kms_response_parser_t *parser)
    parser->kmip = NULL;
 }
 
+void
+kms_response_parser_reset (kms_response_parser_t *parser)
+{
+   KMS_ASSERT(!parser->kmip); // KMIP is not-yet supported.  
+   _parser_destroy(parser);  
+   _parser_init(parser);  
+}
+
 kms_response_parser_t *
 kms_response_parser_new (void)
 {
@@ -70,6 +78,8 @@ kms_response_parser_wants_bytes (kms_response_parser_t *parser, int32_t max)
       KMS_ASSERT (parser->content_length != -1);
       return parser->content_length -
              ((int) parser->raw_response->len - parser->start);
+   default:
+      KMS_ASSERT (false && "Invalid kms_response_parser HTTP state");
    }
    return -1;
 }
@@ -105,12 +115,13 @@ _parse_int (const char *str, int *result)
 static bool
 _parse_int_from_view (const char *str, int start, int end, int *result)
 {
-   char *num_str = malloc (end - start + 1);
+   KMS_ASSERT (end >= start);
+   char *num_str = malloc ((size_t) (end - start + 1));
    KMS_ASSERT (num_str);
 
    bool ret;
 
-   strncpy (num_str, str + start, end - start);
+   strncpy (num_str, str + start, (size_t) (end - start));
    num_str[end - start] = '\0';
    ret = _parse_int (num_str, result);
    free (num_str);
@@ -120,7 +131,8 @@ _parse_int_from_view (const char *str, int start, int end, int *result)
 static bool
 _parse_hex_from_view (const char *str, int len, int *result)
 {
-   *result = unhexlify (str, len);
+   KMS_ASSERT (len >= 0);
+   *result = unhexlify (str, (size_t) len);
    if (*result < 0) {
       return false;
    }
@@ -333,6 +345,8 @@ kms_response_parser_feed (kms_response_parser_t *parser,
       case PARSING_DONE:
          KMS_ERROR (parser, "Unexpected extra HTTP content");
          return false;
+      default:
+         KMS_ASSERT (false && "Invalid kms_response_parser HTTP state");
       }
    }
 
@@ -351,7 +365,7 @@ kms_response_parser_get_response (kms_response_parser_t *parser)
    if (parser->kmip) {
       return kms_kmip_response_parser_get_response (parser->kmip);
    }
-   
+
    response = parser->response;
 
    parser->response = NULL;
@@ -367,12 +381,12 @@ kms_response_parser_status (kms_response_parser_t *parser)
    if (!parser) {
       return 0;
    }
-   
+
    if (parser->kmip) {
       KMS_ERROR (parser, "kms_response_parser_status not applicable to KMIP");
       return 0;
    }
-   
+
    if (!parser->response) {
       return 0;
    }

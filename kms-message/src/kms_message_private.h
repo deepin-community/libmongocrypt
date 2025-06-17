@@ -25,6 +25,14 @@
 #include "kms_crypto.h"
 #include "kms_kmip_response_parser_private.h"
 
+/* Sadly, Windows does not define SSIZE_MAX. It is defined in bson-compat.h,
+ * but only since 1.22.x, so copy this from bson-compat.h for now. */
+#ifndef SSIZE_MAX
+#define SSIZE_MAX \
+   (ssize_t) (    \
+      (((size_t) 0x01u) << (sizeof (ssize_t) * (size_t) CHAR_BIT - 1u)) - 1u)
+#endif
+
 struct _kms_request_t {
    char error[512];
    bool failed;
@@ -117,12 +125,12 @@ struct _kms_response_parser_t {
    } while (0)
 
 void
-set_error (char *error, size_t size, const char *fmt, ...);
+kms_set_error (char *error, size_t size, const char *fmt, ...);
 
 #define KMS_ERROR(obj, ...)                                     \
    do {                                                         \
       obj->failed = true;                                       \
-      set_error (obj->error, sizeof (obj->error), __VA_ARGS__); \
+      kms_set_error (obj->error, sizeof (obj->error), __VA_ARGS__); \
    } while (0)
 
 #define KMS_ASSERT(stmt)                      \

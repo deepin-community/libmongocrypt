@@ -1,0 +1,16 @@
+{
+    "find": "test",
+    "filter": {
+        "value": 123456
+    },
+    "encryptionInformation": {
+        "type": 1,
+        "schema": {
+            "db.test": {
+                "escCollection": "esc",
+                "ecocCollection": "ecoc",
+                "fields": []
+            }
+        }
+    }
+}

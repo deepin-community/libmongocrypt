@@ -30,6 +30,7 @@ Global options
 csfle create_datakey
     --kms_provider <string>
     --key_alt_names <comma separated strings>
+    --key_material <base64 string>
 
     AWS options.
     --aws_kek_region <string>
@@ -52,6 +53,7 @@ csfle create_datakey
     KMIP options.
     --kmip_kek_endpoint <string>
     --kmip_kek_keyid <string>
+    --kmip_kek_delegated <bool>
 
 csfle auto_encrypt
     --command <JSON string> or --command_file <string>
