@@ -20,6 +20,7 @@
 #include "kms_message_private.h"
 #include "kms_request_opt_private.h"
 #include "kms_port.h"
+#include <limits.h> /* CHAR_BIT */
 
 static kms_kv_list_t *
 parse_query_params (kms_request_str_t *q)
@@ -180,10 +181,12 @@ kms_request_set_date (kms_request_t *request, const struct tm *tm)
       /* use current time */
       time_t t;
       time (&t);
-#ifdef _WIN32
+#if defined(KMS_MESSAGE_HAVE_GMTIME_R)
+      gmtime_r (&t, &tmp_tm);
+#elif defined(_MSC_VER)
       gmtime_s (&tmp_tm, &t);
 #else
-      gmtime_r (&t, &tmp_tm);
+      tmp_tm = *gmtime (&t);
 #endif
       tm = &tmp_tm;
    }
@@ -284,11 +287,12 @@ kms_request_append_header_field_value (kms_request_t *request,
       KMS_ERROR (
          request,
          "Ensure the request has at least one header field before calling %s",
-         __FUNCTION__);
+         __func__);
    }
 
    v = request->header_fields->kvs[request->header_fields->len - 1].value;
-   kms_request_str_append_chars (v, value, len);
+   KMS_ASSERT (len <= SSIZE_MAX);
+   kms_request_str_append_chars (v, value, (ssize_t) len);
 
    return true;
 }
@@ -304,7 +308,8 @@ kms_request_append_payload (kms_request_t *request,
       return false;
    }
 
-   kms_request_str_append_chars (request->payload, payload, len);
+   KMS_ASSERT (len <= SSIZE_MAX);
+   kms_request_str_append_chars (request->payload, payload, (ssize_t) len);
 
    return true;
 }
@@ -619,7 +624,7 @@ kms_request_hmac (_kms_crypto_t *crypto,
                   kms_request_str_t *data)
 {
    return crypto->sha256_hmac (
-      crypto->ctx, key->str, (int) key->len, data->str, data->len, out);
+      crypto->ctx, key->str, key->len, data->str, data->len, out);
 }
 
 static bool
@@ -762,6 +767,13 @@ kms_request_validate (kms_request_t *request)
    }
 }
 
+/* append_http_endofline appends an HTTP end-of-line marker: "\r\n". */
+static void
+append_http_endofline (kms_request_str_t *str)
+{
+   kms_request_str_append_chars (str, "\r\n", 2);
+}
+
 char *
 kms_request_get_signed (kms_request_t *request)
 {
@@ -777,7 +789,7 @@ kms_request_get_signed (kms_request_t *request)
    }
 
    if (!check_and_prohibit_kmip (request)) {
-      return false;
+      return NULL;
    }
 
    if (!finalize (request)) {
@@ -795,7 +807,7 @@ kms_request_get_signed (kms_request_t *request)
    }
 
    kms_request_str_append_chars (sreq, " HTTP/1.1", -1);
-   kms_request_str_append_newline (sreq);
+   append_http_endofline (sreq);
 
    /* headers */
    lst = kms_kv_list_dup (request->header_fields);
@@ -804,7 +816,7 @@ kms_request_get_signed (kms_request_t *request)
       kms_request_str_append (sreq, lst->kvs[i].key);
       kms_request_str_append_char (sreq, ':');
       kms_request_str_append (sreq, lst->kvs[i].value);
-      kms_request_str_append_newline (sreq);
+      append_http_endofline (sreq);
    }
 
    /* authorization header */
@@ -819,8 +831,8 @@ kms_request_get_signed (kms_request_t *request)
 
    /* body */
    if (request->payload->len) {
-      kms_request_str_append_newline (sreq);
-      kms_request_str_append_newline (sreq);
+      append_http_endofline (sreq);
+      append_http_endofline (sreq);
       kms_request_str_append (sreq, request->payload);
    }
 
@@ -845,11 +857,11 @@ kms_request_to_string (kms_request_t *request)
    size_t i;
 
    if (!finalize (request)) {
-      return false;
+      return NULL;
    }
 
    if (!check_and_prohibit_kmip (request)) {
-      return false;
+      return NULL;
    }
 
    if (request->to_string) {
@@ -867,7 +879,7 @@ kms_request_to_string (kms_request_t *request)
    }
 
    kms_request_str_append_chars (sreq, " HTTP/1.1", -1);
-   kms_request_str_append_newline (sreq);
+   append_http_endofline (sreq);
 
    /* headers */
    lst = kms_kv_list_dup (request->header_fields);
@@ -876,10 +888,10 @@ kms_request_to_string (kms_request_t *request)
       kms_request_str_append (sreq, lst->kvs[i].key);
       kms_request_str_append_char (sreq, ':');
       kms_request_str_append (sreq, lst->kvs[i].value);
-      kms_request_str_append_newline (sreq);
+      append_http_endofline (sreq);
    }
 
-   kms_request_str_append_newline (sreq);
+   append_http_endofline (sreq);
 
    /* body */
    if (request->payload->len) {

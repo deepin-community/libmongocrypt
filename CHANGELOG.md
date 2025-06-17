@@ -1,4 +1,171 @@
 # ChangeLog
+## 1.13.2
+### Notes
+- Bump downloaded libbson version from 1.28.1 to 1.30.3. Fixes a CMake configure error on macOS with CMake 4.
+## 1.13.1
+### Fixed
+- Fix possible double free on parse error of malformed payload.
+- Fix build failure when configuring with `ENABLE_TRACE=ON`.
+- Fix possible redefinition of `_GNU_SOURCE`.
+
+## 1.13.0
+### New features
+- Support automatic encryption for `$lookup` stages in `aggregate` pipelines on MongoDB server 8.1+.
+### Fixed
+- Restore default behavior to disable extra alignment when importing libbson. This was the default behavior in 1.11. This can be overridden by setting the CMake option `ENABLE_EXTRA_ALIGNMENT=ON`.
+### Removed
+- Support for macOS versions older than 11. libmongocrypt is supported and tested with macOS 11+.
+
+## 1.12.0
+### New features
+- Add option to configure Data Encryption Key cache lifetime (`mongocrypt_setopt_key_expiration`)
+- Add opt-in retry behavior for KMS operations (`mongocrypt_setopt_retry_kms`)
+### Removed
+- libmongocrypt is no longer published in the MongoDB package repository for RHEL 6. libmongocrypt may instead be built from source on RHEL 6, but support for RHEL 6 will be dropped in a future release.
+### Notes
+- This release unintentionally changes the default behavior of extra alignment with importing libbson. See 1.13.0 release notes.
+
+## 1.11.0
+### New features
+- Support `range` algorithm as stable.
+### Deprecated
+- The Windows download URLs for [stable](https://s3.amazonaws.com/mciuploads/libmongocrypt/windows/latest_release/libmongocrypt.tar.gz) and [unstable](https://s3.amazonaws.com/mciuploads/libmongocrypt/windows/latest_release/libmongocrypt_unstable.tar.gz) are now deprecated. See the GitHub Release page for Windows downloads.
+## 1.10.1
+## Fixed
+- Document `range` algorithm as unstable.
+## 1.10.0
+### New features
+- Support KMIP `delegated` option.
+- Support processing `bulkWrite` command.
+- Support `range` algorithm.
+## 1.9.1
+### New features
+- Add Debian 12 packages
+## 1.9.0
+### New features
+- Support named KMS providers.
+- Add `arm64` Debian packages
+## Fixed
+- Fix `arm64` Alpine build.
+## 1.8.4
+### Fixed
+- Fix `aarch64` packages for RHEL 8, RHEL 9, Amazon 2023, and Amazon 2
+## 1.8.3
+### Improvements
+- Include packages for RHEL 8, RHEL 9, and Amazon 2023
+## 1.8.2
+### Fixed
+- Fix possible leaks in Queryable Encryption in errors on malformed data.
+## 1.8.1
+- Bypass search index management commands in automatic encryption
+## 1.8.0
+This release adds stable support of the Queryable Encryption (QE) feature for the "Indexed" and "Unindexed" algorithms.
+## 1.8.0-alpha1
+This release makes backwards breaking changes to Queryable Encryption (QE) behavior added in the 1.8.0-alpha0 release:
+- Do not apply default to min/max values for int/long/date.
+- Enable the QEv2 protocol by default. Remove function to enable QEv2.
+## 1.8.0-alpha0
+### Improvements
+- Support Queryable Encryption v2 protocol.
+## 1.7.2
+### Improvements
+- Add toggle for Decimal128 Range Support.
+### Fixed
+- Fix i686 (32-bit) build.
+- Fix 32-bit ARM build.
+## 1.7.1
+### Improvements
+- Vendor Intel DFP library and allow using system DFP.
+### Fixed
+- Fix possible abort on base64 decode error of KMS messages.
+- Fix ILP32-target builds.
+- Fix LTO build.
+- Fix IntelDFP to not require Git.
+## 1.7.0
+### New Features
+- Add encryptExpression helper
+- Support for range index. NOTE: The Range algorithm is experimental only. It is not intended for public use.
+## 1.7.0-alpha2
+### New Features
+- Support range index for decimal128. NOTE: The Range algorithm is experimental only. It is not intended for public use.
+## 1.7.0-alpha1
+### New Features
+- Add encryptExpression helper
+## 1.7.0-alpha0
+### New Features
+- Support range index for int32, int64, double, and date. NOTE: The Range algorithm is experimental only. It is not intended for public use.
+
+## 1.6.2
+## Fixed
+- Fix build on FreeBSD.
+- Set context error state during KMS provider validation.
+## 1.6.1
+## Fixed
+- Fix libbson dependency in pkg-config for MongoDB repository package.
+## 1.6.0
+## New Features
+- Support accessToken to authenticate with Azure.
+## Fixed
+- Use correct schema when `collMod` command includes `validator.$jsonSchema`.
+## 1.6.0-alpha0
+### New Features
+- Support accessToken to authenticate with GCP.
+### Improvements
+- Use CRLF, not LF, for HTTP request newlines.
+- Include full body of HTTP errors in `mongocrypt_status_t`.
+## 1.5.2
+### Fixed
+- Fix datakey decryption requiring multiple rounds of KMS requests.
+## 1.5.1
+## Warnings
+- This release has a severe bug in the context returned by `mongocrypt_ctx_rewrap_many_datakey_init` that may result in data corruption. Please upgrade to 1.5.2 before using `mongocrypt_ctx_rewrap_many_datakey_init`.
+### New Features
+- Update Java bindings to support remaining 1.5.0 API.
+
+## 1.5.0
+## Warnings
+- This release has a severe bug in the context returned by `mongocrypt_ctx_rewrap_many_datakey_init` that may result in data corruption. Please upgrade to 1.5.2 before using `mongocrypt_ctx_rewrap_many_datakey_init`.
+## Fixed
+- Update to use new payload for FLE 2.0 find. 
+- Require contention factor.
+## 1.5.0-rc2
+### Fixed
+- Fix handling of create command with $jsonSchema.
+- Fix leak on encrypt or decrypt error.
+## Improved
+- Accept string values for QueryType and IndexType.
+
+## 1.4.1
+### Fixed
+- Add missing MONGOCRYPT_EXPORT to mongocrypt_ctx_provide_kms_providers
+## 1.5.0-rc1
+## Fixed
+- Revert new payload for FLE 2.0 find.
+- Do not send "create" and "createIndexes" to mongocryptd when bypassing query analysis.
+
+## 1.5.0-rc0
+## Fixed
+- Account for shared library rename.
+- Update to use new payload for FLE 2.0 find. 
+
+## 1.5.0-alpha2
+## New Features
+- Fix explain when using csfle shared library.
+- Do not bypass "create" or "createIndexes" commands. Support "collMod".
+- Bypass "hello", "buildInfo", "getCmdLineOpts", and "getLog" commands.
+## Fixed
+- Preserve $db in output command.
+- Add missing MONGOCRYPT_EXPORT to mongocrypt_ctx_provide_kms_providers
+## 1.5.0-alpha1
+### Fixed
+- Pick a random contention factor on FLE 2.0 insert.
+
+## 1.5.0-alpha0
+### New Features
+- Support FLE 2.0.
+- Support FLE 1.0 Shared Library.
+- Support Key Management API.
+
 ## 1.4.0
 ### New Features
 - Support on-demand credentials with `MONGOCRYPT_CTX_NEED_KMS_CREDENTIALS` state and `mongocrypt_ctx_provide_kms_providers`.

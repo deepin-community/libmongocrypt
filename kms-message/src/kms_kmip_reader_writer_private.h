@@ -60,6 +60,9 @@ void
 kmip_writer_write_enumeration (kmip_writer_t *writer, kmip_tag_type_t tag, int32_t value);
 
 void
+kmip_writer_write_bool (kmip_writer_t *writer, kmip_tag_type_t tag, bool value);
+
+void
 kmip_writer_write_datetime (kmip_writer_t *writer, kmip_tag_type_t tag, int64_t value);
 
 void
@@ -113,6 +116,9 @@ bool
 kmip_reader_read_enumeration (kmip_reader_t *reader, uint32_t *enum_value);
 
 bool
+kmip_reader_read_bool (kmip_reader_t *reader, bool *value);
+
+bool
 kmip_reader_read_integer (kmip_reader_t *reader, int32_t *value);
 
 bool
@@ -125,7 +131,7 @@ bool
 kmip_reader_read_string (kmip_reader_t *reader, uint8_t **ptr, size_t length);
 
 /* kmip_reader_find does not descend structures.
- * To find and descend into a structure use kmip_reader_find_and_get_struct_reader. */
+ * To find and descend into a structure use kmip_reader_find_and_recurse. */
 bool
 kmip_reader_find (kmip_reader_t *reader,
                   kmip_tag_type_t search_tag,
@@ -134,16 +140,16 @@ kmip_reader_find (kmip_reader_t *reader,
                   size_t *length);
 
 bool
-kmip_reader_find_and_recurse (kmip_reader_t *reader, size_t tag);
+kmip_reader_find_and_recurse (kmip_reader_t *reader, kmip_tag_type_t tag);
 
 bool
 kmip_reader_find_and_read_enum (kmip_reader_t *reader,
-                                size_t tag,
+                                kmip_tag_type_t tag,
                                 uint32_t *value);
 
 bool
 kmip_reader_find_and_read_bytes (kmip_reader_t *reader,
-                                 size_t tag,
+                                 kmip_tag_type_t tag,
                                  uint8_t **out_ptr,
                                  size_t *out_len);
 

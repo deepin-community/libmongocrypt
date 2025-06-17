@@ -21,11 +21,9 @@ try:
     # Enable the fault handler to dump the traceback of each running thread
     # after a segfault.
     import faulthandler
+
     faulthandler.enable()
 except ImportError:
     pass
 
-# Use assertRaisesRegex if available, otherwise use Python 2.7's
-# deprecated assertRaisesRegexp, with a 'p'.
-if not hasattr(unittest.TestCase, 'assertRaisesRegex'):
-    unittest.TestCase.assertRaisesRegex = unittest.TestCase.assertRaisesRegexp
+from unittest import mock
